@@ -1,16 +1,18 @@
 import chromadb
-from chromadb.utils import embedding_functions
+import chromadb.utils.embedding_functions as embedding_functions
 from typing import List
 from core.definitions import Text
 import openai
 import requests
 import json
+import pathlib
+import textwrap
+import google.generativeai as genai
 import os
 
 # Setting up user and URL for activeloop
 username = "mit.quantum.ai"
 activeloop_url = "https://app.activeloop.ai/api/query/v1"
-
 
 def embedding_function(texts, model="text-embedding-ada-002"):
     """Function to generate embeddings for given texts using OpenAI API
@@ -33,8 +35,10 @@ def embedding_function(texts, model="text-embedding-ada-002"):
 
 # Loading API keys from .env.yaml
 # print('vectordb env variables:', os.environ)
+# Manas: Using GCP API key instead of OpenAI API Key
 if "CHATTUTOR_GCP" in os.environ or "_CHATUTOR_GCP" in os.environ:
-    openai.api_key = os.environ["OPENAI_API_KEY"]
+    # openai.api_key = os.environ["OPENAI_API_KEY"]
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 else:
     import yaml
 
@@ -42,7 +46,8 @@ else:
         yamlenv = yaml.safe_load(f)
     keys = yamlenv["env_variables"]
     print(keys)
-    os.environ["OPENAI_API_KEY"] = keys["OPENAI_API_KEY"]
+    # os.environ["OPENAI_API_KEY"] = keys["OPENAI_API_KEY"]
+    os.environ["GEMINI_API_KEY"] = keys["GEMINI_API_KEY"]
 
 
 class VectorDatabase:
@@ -93,11 +98,16 @@ class VectorDatabase:
         
     def load_datasource_chroma(self, collection_name):
         """Initialize the datasource attribute for the chroma provided VectorDatabase object"""
-        openai_ef = embedding_functions.OpenAIEmbeddingFunction(
-            model_name="text-embedding-ada-002"
-        )
+        # Manas, old code for OpenAI embedding function:
+        # openai_ef = embedding_functions.OpenAIEmbeddingFunction(
+        #     model_name="text-embedding-ada-002"
+        # )
+
+        # Manas, new code for Google Gemini's embedding function:
+        google_ef = embedding_functions.GoogleGenerativeAiEmbeddingFunction(api_key=os.environ["GEMINI_API_KEY"])
+
         self.datasource = self.client.get_or_create_collection(
-            name=collection_name, embedding_function=openai_ef
+            name=collection_name, embedding_function=google_ef
         )
 
     def delete_datasource_chroma(self, collection_name):
